@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Techfest 2026-27 | Build what comes next</title>
+<meta name="description" content="A 3D scroll experience for Techfest, IIT Bombay. One cloud of particles becomes a helix, a knot, a cube, a galaxy and finally the letters TF.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500&family=Unbounded:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0F0B24;
+    --paper:#F4F1FF;
+    --soft:rgba(244,241,255,.72);
+    --line:rgba(244,241,255,.22);
+    --accent:#FFB547;
+    --display:"Unbounded","Arial Black",Impact,sans-serif;
+    --body:"Instrument Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    --vh:100vh;
+  }
+  *,*::before,*::after{box-sizing:border-box}
+  html{background:var(--ink)}
+  body{
+    margin:0;color:var(--paper);font-family:var(--body);font-size:1.125rem;line-height:1.55;
+    background:radial-gradient(90% 70% at 70% 30%,#1d1450 0%,var(--ink) 60%);
+    -webkit-font-smoothing:antialiased;overflow-x:hidden;
+  }
+  h1,h2{font-family:var(--display);font-weight:600;letter-spacing:-.03em;line-height:1.04;margin:0}
+  p{margin:0}
+  a{color:inherit}
+  :focus-visible{outline:3px solid var(--accent);outline-offset:3px;border-radius:4px}
+
+  #gl{position:fixed;inset:0;width:100%;height:100%;display:block;z-index:0}
+  .vignette{position:fixed;inset:0;z-index:1;pointer-events:none;
+    background:radial-gradient(120% 95% at 50% 45%,transparent 45%,rgba(8,5,24,.7) 100%)}
+
+  /* ---------- Fixed chrome ---------- */
+  .top{
+    position:fixed;inset:0 0 auto 0;z-index:6;display:flex;align-items:center;justify-content:space-between;
+    padding:1.25rem clamp(1.25rem,3vw,2.5rem);
+  }
+  .brand{font-family:var(--display);font-weight:700;font-size:1.25rem;letter-spacing:-.02em;text-decoration:none}
+  .brand small{display:block;font-family:var(--body);font-weight:400;font-size:.8125rem;letter-spacing:0;color:var(--soft)}
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;
+    padding:.8rem 1.35rem;border-radius:999px;font:500 .9375rem/1 var(--body);text-decoration:none;
+    border:1.5px solid var(--accent);color:var(--paper);background:transparent;
+    transition:background .2s,color .2s;
+  }
+  .btn:hover{background:var(--accent);color:var(--ink)}
+  .btn--solid{background:var(--accent);color:var(--ink)}
+  .btn--solid:hover{background:var(--paper);border-color:var(--paper)}
+
+  .dots{
+    position:fixed;right:clamp(.5rem,1.6vw,1.5rem);top:50%;transform:translateY(-50%);z-index:6;
+    display:flex;flex-direction:column;gap:.15rem;
+  }
+  .dots button{
+    position:relative;width:30px;height:30px;border:0;background:none;cursor:pointer;padding:0;
+    display:grid;place-items:center;
+  }
+  .dots i{display:block;width:8px;height:8px;border-radius:50%;background:var(--line);transition:all .25s}
+  .dots button[aria-current="true"] i{width:12px;height:12px;background:var(--accent);box-shadow:0 0 0 4px rgba(255,255,255,.08)}
+  .dots span{
+    position:absolute;right:100%;margin-right:.5rem;white-space:nowrap;font-size:.875rem;color:var(--paper);
+    background:rgba(15,11,36,.85);padding:.25rem .6rem;border-radius:6px;opacity:0;pointer-events:none;transition:opacity .2s;
+  }
+  .dots button:hover span,.dots button:focus-visible span{opacity:1}
+
+  .cue{
+    position:fixed;left:clamp(1.25rem,3vw,2.5rem);bottom:1.5rem;z-index:6;display:flex;align-items:center;gap:.9rem;
+    color:var(--soft);font-size:.9375rem;pointer-events:none;
+  }
+  .cue::before{content:"";width:44px;height:1px;background:var(--soft)}
+
+  /* ---------- Scroll panels ---------- */
+  main{position:relative;z-index:3}
+  .panel{
+    height:var(--vh);display:flex;align-items:center;
+    padding:0 clamp(1.25rem,7vw,7rem);
+  }
+  .panel--r{justify-content:flex-end}
+  .panel--c{justify-content:center;align-items:flex-end;padding-bottom:8vh;text-align:center}
+  .copy{max-width:31rem;will-change:transform,opacity}
+  .panel--c .copy{max-width:36rem}
+  .copy h1{font-size:clamp(2.6rem,5.6vw,5.2rem)}
+  .copy h2{font-size:clamp(1.9rem,3.8vw,3.4rem)}
+  .copy p{margin-top:1.4rem;color:var(--soft);max-width:34ch}
+  .panel--c .copy p{margin-inline:auto;max-width:40ch}
+  .copy .btn{margin-top:1.75rem}
+  .fine{margin-top:1.5rem;font-size:.875rem;color:var(--soft);opacity:.7}
+
+  .no-webgl body{background:radial-gradient(80% 60% at 70% 40%,#3a1f78,var(--ink))}
+  .no-webgl #gl{display:none}
+
+  @media (max-width:820px){
+    body{font-size:1.0625rem}
+    .panel,.panel--r,.panel--c{justify-content:flex-start;align-items:flex-end;padding-bottom:9vh;text-align:left}
+    .copy,.panel--c .copy{
+      max-width:none;width:100%;padding:1.25rem 1rem 0 0;
+      background:linear-gradient(to top,rgba(15,11,36,.92) 55%,transparent);
+    }
+    .panel--c .copy p{margin-inline:0}
+    .brand small{display:none}
+    .dots button{width:24px;height:24px}
+    .dots span{display:none}
+    .cue{display:none}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .btn,.dots i,.dots span{transition:none}
+  }
+</style>
+</head>
+<body>
+
+<canvas id="gl" aria-hidden="true"></canvas>
+<div class="vignette" aria-hidden="true"></div>
+
+<header class="top">
+  <a class="brand" href="#s0">Techfest<small>IIT Bombay, 2026-27</small></a>
+  <a class="btn" href="https://techfest.org" target="_blank" rel="noopener">Visit techfest.org</a>
+</header>
+
+<nav class="dots" aria-label="Sections" id="dots"></nav>
+<div class="cue" id="cue">Scroll to explore. Move or click on the shape.</div>
+
+<main>
+  <section class="panel" id="s0" data-name="Intro">
+    <div class="copy">
+      <h1>Build what comes next.</h1>
+      <p>Techfest is Asia's largest science and technology festival, held at IIT Bombay. Scroll to see what is on.</p>
+    </div>
+  </section>
+
+  <section class="panel panel--r" id="s1" data-name="Workshops">
+    <div class="copy">
+      <h2>Workshops that end with something built.</h2>
+      <p>Hands-on sessions taught by practitioners. You leave with a working project, not just notes.</p>
+    </div>
+  </section>
+
+  <section class="panel" id="s2" data-name="Competitions">
+    <div class="copy">
+      <h2>Competitions that test the whole team.</h2>
+      <p>Robotics, coding, design and product challenges, with teams from campuses across the country.</p>
+    </div>
+  </section>
+
+  <section class="panel panel--r" id="s3" data-name="Exhibitions">
+    <div class="copy">
+      <h2>Exhibitions you can walk up to and touch.</h2>
+      <p>Working prototypes and installations, shown by the people who built them.</p>
+    </div>
+  </section>
+
+  <section class="panel" id="s4" data-name="Lectures">
+    <div class="copy">
+      <h2>Lectures from the people doing the work.</h2>
+      <p>Researchers, founders and engineers on where science and technology are heading next.</p>
+    </div>
+  </section>
+
+  <section class="panel panel--c" id="s5" data-name="Join">
+    <div class="copy">
+      <h2>Bring your campus.</h2>
+      <p>Techfest travels through the students who talk about it. Start with ten people you know.</p>
+      <a class="btn btn--solid" href="https://techfest.org" target="_blank" rel="noopener">Explore Techfest</a>
+      <p class="fine">A concept build for a Techfest web design task.</p>
+    </div>
+  </section>
+</main>
+
+<!-- Three.js r128, classic build (works when opened straight from a file) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+  'use strict';
+
+  var reduce  = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var panels  = Array.prototype.slice.call(document.querySelectorAll('.panel'));
+  var S       = panels.length;                 // number of sections (6)
+  var root    = document.documentElement;
+  var canvas  = document.getElementById('gl');
+  var cue     = document.getElementById('cue');
+
+  /* ---------------------------------------------------------------
+     Section navigation dots
+  --------------------------------------------------------------- */
+  var dotsEl = document.getElementById('dots');
+  var dotBtns = panels.map(function(p, i){
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.setAttribute('aria-label', p.dataset.name);
+    b.innerHTML = '<span>' + p.dataset.name + '</span><i></i>';
+    b.addEventListener('click', function(){
+      window.scrollTo({ top: i * panelH(), behavior: reduce ? 'auto' : 'smooth' });
+    });
+    dotsEl.appendChild(b);
+    return b;
+  });
+
+  function panelH(){ return panels[0].offsetHeight || window.innerHeight; }
+  function setVH(){ root.style.setProperty('--vh', window.innerHeight + 'px'); }
+  setVH();
+
+  /* ---------------------------------------------------------------
+     WebGL setup (falls back to plain text if unavailable)
+  --------------------------------------------------------------- */
+  var renderer = null;
+  try {
+    if (typeof THREE === 'undefined') throw new Error('three.js not loaded');
+    renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true, antialias: false, powerPreference: 'high-performance' });
+  } catch (err) {
+    root.classList.add('no-webgl');
+    renderer = null;
+  }
+
+  var isMobile = function(){ return window.innerWidth < 820; };
+  var N = isMobile() ? 5500 : 10000;
+
+  /* ---------------------------------------------------------------
+     Shape generators. Every shape has N points, so particle k
+     always maps to particle k of the next shape.
+  --------------------------------------------------------------- */
+  function gauss(){ return (Math.random() + Math.random() + Math.random() - 1.5) / 1.5; }
+
+  function shapeSphere(){
+    var a = new Float32Array(N * 3), ga = Math.PI * (3 - Math.sqrt(5));
+    for (var i = 0; i < N; i++){
+      var y = 1 - (i / (N - 1)) * 2, r = Math.sqrt(1 - y * y), th = ga * i, R = 2.15 + gauss() * 0.03;
+      a[i*3] = Math.cos(th) * r * R; a[i*3+1] = y * R; a[i*3+2] = Math.sin(th) * r * R;
+    }
+    return a;
+  }
+
+  function shapeHelix(){
+    var a = new Float32Array(N * 3), H = 6, turns = 3.2, R = 1.25;
+    for (var i = 0; i < N; i++){
+      var u = Math.random(), t = Math.random(), x, y, z, j = 0.06;
+      if (t < 0.42){ var g = u * turns * 2 * Math.PI; x = Math.cos(g) * R; z = Math.sin(g) * R; y = (u - .5) * H; j = 0.09; }
+      else if (t < 0.84){ var g2 = u * turns * 2 * Math.PI + Math.PI; x = Math.cos(g2) * R; z = Math.sin(g2) * R; y = (u - .5) * H; j = 0.09; }
+      else {
+        var uq = Math.round(u * 30) / 30, g3 = uq * turns * 2 * Math.PI, s = Math.random() * 2 - 1;
+        x = Math.cos(g3) * R * s; z = Math.sin(g3) * R * s; y = (uq - .5) * H; j = 0.03;
+      }
+      a[i*3] = x + gauss() * j; a[i*3+1] = y + gauss() * j; a[i*3+2] = z + gauss() * j;
+    }
+    return a;
+  }
+
+  function shapeKnot(){
+    var a = new Float32Array(N * 3), p = 2, q = 3, sc = 0.8;
+    for (var i = 0; i < N; i++){
+      var t = Math.random() * Math.PI * 2, r = Math.cos(q * t) + 2;
+      a[i*3]   = r * Math.cos(p * t) * sc + gauss() * 0.11;
+      a[i*3+1] = r * Math.sin(p * t) * sc + gauss() * 0.11;
+      a[i*3+2] = -Math.sin(q * t) * sc * 1.2 + gauss() * 0.11;
+    }
+    return a;
+  }
+
+  function shapeCube(){
+    var a = new Float32Array(N * 3), h = 1.7, step = (h * 2) / 10;
+    for (var i = 0; i < N; i++){
+      var axis = Math.floor(Math.random() * 3), sign = Math.random() < .5 ? -1 : 1;
+      var u = (Math.random() * 2 - 1) * h, v = (Math.random() * 2 - 1) * h;
+      if (Math.random() < .5) u = Math.round(u / step) * step; else v = Math.round(v / step) * step;
+      var p = [0, 0, 0];
+      p[axis] = sign * h; p[(axis + 1) % 3] = u; p[(axis + 2) % 3] = v;
+      a[i*3] = p[0] + gauss() * .012; a[i*3+1] = p[1] + gauss() * .012; a[i*3+2] = p[2] + gauss() * .012;
+    }
+    return a;
+  }
+
+  function shapeGalaxy(){
+    var a = new Float32Array(N * 3), arms = 3, tilt = 0.85, ct = Math.cos(tilt), st = Math.sin(tilt);
+    for (var i = 0; i < N; i++){
+      var x, y, z;
+      if (Math.random() < 0.14){
+        x = gauss() * 0.55; y = gauss() * 0.45; z = gauss() * 0.55;
+      } else {
+        var r = Math.pow(Math.random(), 1.25) * 3.6, arm = Math.floor(Math.random() * arms);
+        var ang = (arm / arms) * Math.PI * 2 + r * 1.3 + gauss() * (0.42 - r * 0.05);
+        x = Math.cos(ang) * r; z = Math.sin(ang) * r; y = gauss() * 0.2 * (1.2 - r / 4.5);
+      }
+      a[i*3] = x; a[i*3+1] = y * ct - z * st; a[i*3+2] = y * st + z * ct;
+    }
+    return a;
+  }
+
+  function shapeTF(){
+    // Letters built from rectangles: [x0, x1, y0, y1]
+    var rects = [
+      [-3.3, -0.3, 0.95, 1.7],          // T bar
+      [-2.175, -1.425, -1.7, 0.95],     // T stem
+      [0.4, 1.15, -1.7, 1.7],           // F stem
+      [0.4, 3.2, 0.95, 1.7],            // F top bar
+      [0.4, 2.7, -0.15, 0.6]            // F middle bar
+    ];
+    var areas = rects.map(function(r){ return (r[1] - r[0]) * (r[3] - r[2]); });
+    var total = areas.reduce(function(s, v){ return s + v; }, 0);
+    var a = new Float32Array(N * 3);
+    for (var i = 0; i < N; i++){
+      var pick = Math.random() * total, k = 0;
+      while (k < areas.length - 1 && pick > areas[k]){ pick -= areas[k]; k++; }
+      var r = rects[k];
+      a[i*3]   = r[0] + Math.random() * (r[1] - r[0]) - 0.05;
+      a[i*3+1] = r[2] + Math.random() * (r[3] - r[2]);
+      a[i*3+2] = (Math.random() - .5) * 0.55;
+    }
+    return a;
+  }
+
+  var shapes = [shapeSphere(), shapeHelix(), shapeKnot(), shapeCube(), shapeGalaxy(), shapeTF()];
+
+  // Palette per section: two colors each particle blends between
+  function C(h){ return new THREE.Color(h); }
+  var palette = null;
+
+  /* ---------------------------------------------------------------
+     Scene objects
+  --------------------------------------------------------------- */
+  var scene, camera, group, points, geo, mat, posArr, delay, dir, scatter;
+  var mouse = { x: 0, y: 0, tx: 0, ty: 0, active: false };
+  var mouseWorld = new THREE.Vector3(999, 999, 0), pulsePos = new THREE.Vector3(999, 999, 0);
+  var pulseT = 30;
+
+  if (renderer){
+    palette = [
+      [C('#FFB547'), C('#FF5C7A')],
+      [C('#4FD1FF'), C('#8B6CFF')],
+      [C('#FF7A59'), C('#FFD36B')],
+      [C('#B69CFF'), C('#FF8FD8')],
+      [C('#6EE7FF'), C('#FFFFFF')],
+      [C('#FFB547'), C('#FF5C7A')]
+    ];
+
+    scene  = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+    camera.position.set(0, 0, 9);
+    group  = new THREE.Group();
+    scene.add(group);
+
+    posArr  = new Float32Array(N * 3);
+    delay   = new Float32Array(N);
+    scatter = new Float32Array(N);
+    dir     = new Float32Array(N * 3);
+    var rnd = new Float32Array(N);
+    for (var i = 0; i < N; i++){
+      delay[i] = Math.random();
+      rnd[i]   = Math.random();
+      scatter[i] = 0.6 + Math.random() * 1.6;
+      var vx = gauss(), vy = gauss(), vz = gauss(), l = Math.hypot(vx, vy, vz) || 1;
+      dir[i*3] = vx / l; dir[i*3+1] = vy / l; dir[i*3+2] = vz / l;
+    }
+    posArr.set(shapes[0]);
+
+    geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(posArr, 3));
+    geo.setAttribute('aRand', new THREE.BufferAttribute(rnd, 1));
+
+    mat = new THREE.ShaderMaterial({
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+      uniforms: {
+        uTime:     { value: 0 },
+        uSize:     { value: 2.0 },
+        uPR:       { value: 1 },
+        uWobble:   { value: reduce ? 0 : 1 },
+        uMouse:    { value: mouseWorld },
+        uPulsePos: { value: pulsePos },
+        uPulseT:   { value: pulseT },
+        uCol1:     { value: C('#FFB547') },
+        uCol2:     { value: C('#FF5C7A') }
+      },
+      vertexShader: [
+        'uniform float uTime, uSize, uPR, uPulseT, uWobble;',
+        'uniform vec3 uMouse, uPulsePos, uCol1, uCol2;',
+        'attribute float aRand;',
+        'varying vec3 vColor; varying float vAlpha;',
+        'void main(){',
+        '  vec3 p = position;',
+        '  float ph = aRand * 6.2831;',
+        '  p += uWobble * 0.045 * vec3(sin(uTime*0.9+ph*3.0), cos(uTime*0.7+ph*5.0), sin(uTime*1.1+ph*2.0));',
+        '  vec4 wp = modelMatrix * vec4(p, 1.0);',
+        '  vec2 dm = wp.xy - uMouse.xy;',
+        '  float push = smoothstep(1.15, 0.0, length(dm));',
+        '  wp.xy += normalize(dm + 1e-4) * push * push * 0.6;',
+        '  wp.z  += push * 0.5;',
+        '  vec2 dp = wp.xy - uPulsePos.xy;',
+        '  float wave = exp(-pow((length(dp) - uPulseT * 6.0) * 1.5, 2.0)) * exp(-uPulseT * 0.8);',
+        '  wp.xy += normalize(dp + 1e-4) * wave * 0.55;',
+        '  wp.z  += wave * 1.0;',
+        '  vec4 mv = viewMatrix * wp;',
+        '  gl_Position = projectionMatrix * mv;',
+        '  gl_PointSize = (uSize * (0.65 + aRand * 0.9) + wave * 5.0 + push * 2.0) * uPR * (10.0 / -mv.z);',
+        '  vColor = mix(uCol1, uCol2, aRand) + wave * 0.5 + push * 0.2;',
+        '  vAlpha = 0.6 + 0.4 * aRand;',
+        '}'
+      ].join('\n'),
+      fragmentShader: [
+        'varying vec3 vColor; varying float vAlpha;',
+        'void main(){',
+        '  float d = length(gl_PointCoord - 0.5);',
+        '  if (d > 0.5) discard;',
+        '  float a = smoothstep(0.5, 0.05, d);',
+        '  gl_FragColor = vec4(vColor, a * vAlpha);',
+        '}'
+      ].join('\n')
+    });
+
+    points = new THREE.Points(geo, mat);
+    points.frustumCulled = false;
+    group.add(points);
+  }
+
+  /* ---------------------------------------------------------------
+     Layout: where the object sits for each section
+  --------------------------------------------------------------- */
+  var view = { halfW: 6, halfH: 3.7 };
+  function resize(){
+    setVH();
+    var w = window.innerWidth, h = window.innerHeight;
+    if (renderer){
+      var pr = Math.min(window.devicePixelRatio || 1, 2);
+      renderer.setPixelRatio(pr);
+      renderer.setSize(w, h, false);
+      mat.uniforms.uPR.value = pr;
+      camera.aspect = w / h;
+      camera.position.z = isMobile() ? 10.5 : 9;
+      camera.updateProjectionMatrix();
+      view.halfH = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * camera.position.z;
+      view.halfW = view.halfH * camera.aspect;
+    }
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  function layout(i){
+    if (isMobile()) return { x: 0, y: view.halfH * 0.42, s: [0.62, 0.62, 0.62, 0.62, 0.5, 0.36][i] };
+    var side = [1, -1, 1, -1, 1, 0][i];
+    var xs   = side * view.halfW * 0.44;
+    var ys   = [0, 0, 0, 0, 0, view.halfH * 0.36][i];
+    var ss   = [1, 1, 0.95, 1, 0.85, 0.66][i];
+    return { x: xs, y: ys, s: ss };
+  }
+
+  /* ---------------------------------------------------------------
+     Morphing between shapes (CPU, only when scroll changes)
+  --------------------------------------------------------------- */
+  function clamp01(v){ return v < 0 ? 0 : v > 1 ? 1 : v; }
+  function smooth(t){ return t * t * (3 - 2 * t); }
+
+  function morph(sp){
+    var i = Math.min(S - 2, Math.floor(sp)), f = sp - i;
+    var g = clamp01((f - 0.15) / 0.7);            // hold each shape near section centre
+    var A = shapes[i], B = shapes[i + 1];
+    for (var k = 0; k < N; k++){
+      var t = clamp01((g - delay[k] * 0.4) / 0.6), e = smooth(t);
+      var sc = Math.sin(Math.PI * e) * scatter[k], k3 = k * 3;
+      posArr[k3]   = A[k3]   + (B[k3]   - A[k3])   * e + dir[k3]   * sc;
+      posArr[k3+1] = A[k3+1] + (B[k3+1] - A[k3+1]) * e + dir[k3+1] * sc;
+      posArr[k3+2] = A[k3+2] + (B[k3+2] - A[k3+2]) * e + dir[k3+2] * sc;
+    }
+    geo.attributes.position.needsUpdate = true;
+  }
+
+  var tmpA = new THREE.Color(), tmpB = new THREE.Color();
+  function applyColors(sp){
+    var i = Math.min(S - 2, Math.floor(sp)), f = smooth(clamp01(sp - i));
+    mat.uniforms.uCol1.value.copy(palette[i][0]).lerp(palette[i + 1][0], f);
+    mat.uniforms.uCol2.value.copy(palette[i][1]).lerp(palette[i + 1][1], f);
+    var c = mat.uniforms.uCol1.value;
+    root.style.setProperty('--accent', 'rgb(' + Math.round(c.r * 255) + ',' + Math.round(c.g * 255) + ',' + Math.round(c.b * 255) + ')');
+  }
+
+  /* ---------------------------------------------------------------
+     Pointer interaction
+  --------------------------------------------------------------- */
+  var ray = renderer ? new THREE.Raycaster() : null;
+  var plane = renderer ? new THREE.Plane(new THREE.Vector3(0, 0, 1), 0) : null;
+  var ndc = renderer ? new THREE.Vector2() : null;
+  var hit = renderer ? new THREE.Vector3() : null;
+
+  function toWorld(out){
+    ndc.set(mouse.x, mouse.y);
+    ray.setFromCamera(ndc, camera);
+    if (ray.ray.intersectPlane(plane, hit)) out.copy(hit);
+  }
+  window.addEventListener('pointermove', function(e){
+    mouse.tx = (e.clientX / window.innerWidth) * 2 - 1;
+    mouse.ty = -(e.clientY / window.innerHeight) * 2 + 1;
+    mouse.active = true;
+  });
+  document.addEventListener('pointerleave', function(){ mouse.active = false; });
+  window.addEventListener('pointerdown', function(e){
+    if (!renderer || (e.target.closest && e.target.closest('a,button'))) return;
+    mouse.x = mouse.tx = (e.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = mouse.ty = -(e.clientY / window.innerHeight) * 2 + 1;
+    toWorld(pulsePos);
+    pulseT = 0;
+  });
+
+  /* ---------------------------------------------------------------
+     Main loop
+  --------------------------------------------------------------- */
+  var sp = 0, lastSp = -1, time = 0, spin = 0, last = performance.now();
+  var copies = panels.map(function(p){ return p.querySelector('.copy'); });
+
+  function frame(now){
+    var dt = Math.min(0.05, (now - last) / 1000); last = now; time += dt;
+
+    var ph = panelH();
+    var target = Math.max(0, Math.min(S - 1, window.scrollY / ph));
+    sp += (target - sp) * (1 - Math.exp(-dt * (reduce ? 14 : 4.5)));
+    if (Math.abs(target - sp) < 0.0005) sp = target;
+
+    /* HTML: scroll-scrubbed 3D transform of each text block */
+    for (var i = 0; i < S; i++){
+      var d = sp - i, a = Math.abs(d), vis = clamp01(1 - a * 1.5);
+      var side = panels[i].classList.contains('panel--r') ? -1 : 1;
+      copies[i].style.opacity = vis.toFixed(3);
+      copies[i].style.transform = 'perspective(1000px) translate3d(' + (d * -50 * side).toFixed(1) + 'px,0,' + (-a * 180).toFixed(1) + 'px) rotateY(' + (d * 16 * side).toFixed(2) + 'deg)';
+      copies[i].style.pointerEvents = vis > 0.6 ? 'auto' : 'none';
+    }
+    var act = Math.round(sp);
+    for (var b = 0; b < dotBtns.length; b++) dotBtns[b].setAttribute('aria-current', b === act ? 'true' : 'false');
+    cue.style.opacity = clamp01(1 - sp * 3).toFixed(2);
+
+    if (renderer){
+      if (Math.abs(sp - lastSp) > 0.0002 || lastSp < 0){
+        morph(sp); applyColors(sp); lastSp = sp;
+      }
+
+      // Placement between the two nearest sections
+      var i0 = Math.min(S - 2, Math.floor(sp)), f = smooth(clamp01(sp - i0));
+      var L0 = layout(i0), L1 = layout(i0 + 1);
+      group.position.x = L0.x + (L1.x - L0.x) * f;
+      group.position.y = L0.y + (L1.y - L0.y) * f;
+      var sc = L0.s + (L1.s - L0.s) * f;
+      group.scale.setScalar(sc);
+
+      // Rotation: continuous spin, easing to a still pose for the TF finale
+      var finale = smooth(clamp01(sp - 4));
+      if (!reduce) spin += dt * 0.14 * (1 - finale);
+      var wrapped = ((spin + Math.PI) % (Math.PI * 2)) - Math.PI;
+      mouse.x += (mouse.tx - mouse.x) * 0.08;
+      mouse.y += (mouse.ty - mouse.y) * 0.08;
+      group.rotation.y = wrapped * (1 - finale) + Math.sin(time * 0.5) * 0.12 * finale * (reduce ? 0 : 1) + mouse.x * 0.28;
+      group.rotation.x = -mouse.y * 0.18 + Math.sin(sp * 1.3) * 0.08 * (1 - finale);
+
+      // Cursor and pulse in world space
+      if (mouse.active) toWorld(mouseWorld); else mouseWorld.set(999, 999, 0);
+      pulseT += dt;
+
+      mat.uniforms.uTime.value = time;
+      mat.uniforms.uPulseT.value = pulseT;
+      renderer.render(scene, camera);
+    }
+    requestAnimationFrame(frame);
+  }
+
+  // Start with a sensible position if the page is reloaded mid-scroll
+  sp = Math.max(0, Math.min(S - 1, window.scrollY / panelH()));
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
