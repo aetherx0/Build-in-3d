@@ -1,7 +1,7 @@
 
-# Techfest 3D: Build what comes next
+# 3D Website
 
-A 3D, scroll-driven website for Techfest 2026-27 (IIT Bombay), built for the "Build in 3D" task.
+A 3D, scroll-driven website
 
 ## Concept
 One cloud of about 10,000 particles is the only 3D object on the page. As you scroll, it morphs between shapes that match each section:
